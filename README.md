@@ -59,7 +59,7 @@ Log-Scrubber-GUI/
 ## 安装和运行
 
 ### 环境要求
-- Node.js >= 16.0.0
+- Node.js >= 18.0.0
 - npm 或 yarn
 
 ### 安装依赖
@@ -263,6 +263,18 @@ npm install --save-dev electron-reload
 ```
 
 ## 更新日志
+
+### v1.1.0 (2025-12-26)
+- 修复取消/异常路径 ReferenceError 崩溃问题
+- 修复 URL query 参数脱敏"吞参"问题
+- 修复 JSON 结构化日志按敏感键脱敏
+- 修复配置面板 UI 回显（enableMasking/maskUrlParams）
+- 修复配置导入/导出自洽性（白名单字段补齐）
+- 修复 JSON 无变化时重新序列化问题
+- 修复临时文件清理策略（原子写入 + 历史遗留清理）
+- 完善路径安全校验（Windows 敏感目录 + 路径遍历检测）
+- 移除未使用的 sharp 依赖
+- 升级 Electron 到稳定版本
 
 ### v1.0.0 (2024-12-15)
 - 🎉 初始版本发布
