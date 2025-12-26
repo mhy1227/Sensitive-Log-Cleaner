@@ -302,7 +302,7 @@ MIT License - 详见 [LICENSE](../LICENSE) 文件
 
 ## 支持
 
-- 📧 邮箱：support@logscrubber.com
+- 📧 邮箱：hmym0604@outlook.com
 - 🐛 问题反馈：[GitHub Issues](https://github.com/log-scrubber/gui/issues)
 - 📖 文档：[在线文档](https://docs.logscrubber.com)
 
