@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+    <title>日志脱敏工具</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 标题栏 -->
+        <header class="app-header">
+            <div class="header-left">
+                <img src="../../assets/icons/icon.png" alt="Logo" class="app-logo">
+                <h1 class="app-title">日志脱敏工具</h1>
+                <span class="app-version">v1.0.0</span>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-icon" id="settingsBtn" title="设置">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97L2.46 14.6c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.31.61.22l2.49-1c.52.39 1.06.73 1.69.98l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.25 1.17-.59 1.69-.98l2.49 1c.22.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+                    </svg>
+                </button>
+                <button class="btn btn-icon" id="helpBtn" title="帮助">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 左侧文件列表 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3>文件列表</h3>
+                    <div class="file-actions">
+                        <button class="btn btn-sm" id="selectFilesBtn">选择文件</button>
+                        <button class="btn btn-sm btn-secondary" id="clearFilesBtn">清空列表</button>
+                    </div>
+                    <div class="selection-actions">
+                        <button class="btn btn-sm btn-secondary" id="selectAllBtn">全选</button>
+                        <button class="btn btn-sm btn-secondary" id="deselectAllBtn">取消全选</button>
+                    </div>
+                </div>
+                <div class="file-list-container">
+                    <div class="file-list" id="fileList">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                            <p>暂无文件</p>
+                            <small>拖拽文件到右侧区域或点击"选择文件"</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-footer">
+                    <div class="file-stats">
+                        <span id="fileCount">0 个文件</span>
+                        <span id="totalSize">0 B</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中央拖拽区域 -->
+            <section class="drop-zone-container">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-content">
+                        <div class="drop-icon">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" opacity="0.4">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                        </div>
+                        <h2>拖拽日志文件到此处</h2>
+                        <p>支持 .log、.txt 等文本文件</p>
+                        <div class="drop-actions">
+                            <button class="btn btn-primary" id="selectFilesBtn2">选择文件</button>
+                            <button class="btn btn-secondary" id="selectFolderBtn">选择文件夹</button>
+                        </div>
+                        <div class="supported-formats">
+                            <small>支持的格式：LOG, TXT, 以及其他文本文件</small>
+                        </div>
+                    </div>
+                    <div class="drop-overlay" id="dropOverlay">
+                        <div class="drop-overlay-content">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                            </svg>
+                            <p>释放文件以添加到列表</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧配置面板 -->
+            <aside class="config-panel">
+                <div class="config-header">
+                    <h3>脱敏配置</h3>
+                    <button class="btn btn-sm btn-icon" id="resetConfigBtn" title="重置配置">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,4C14.1,4 16.1,4.8 17.6,6.3C20.7,9.4 20.7,14.5 17.6,17.6C15.8,19.5 13.3,20.2 10.9,19.9L11.4,17.9C13.1,18.1 14.9,17.5 16.2,16.2C18.5,13.9 18.5,10.1 16.2,7.7C15.1,6.6 13.5,6 12,6V10.6L7,5.6L12,0.6V4M6.3,17.6C3.7,15 3.3,11 5.1,7.9L6.6,9.4C5.5,11.6 5.9,14.4 7.8,16.2C8.3,16.7 8.9,17.1 9.6,17.4L9,19.4C8,19 7.1,18.4 6.3,17.6Z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="config-content">
+                    <!-- 脱敏规则 -->
+                    <div class="config-section">
+                        <h4>脱敏规则</h4>
+
+                        <!-- 核心敏感信息 -->
+                        <div class="rule-category">
+                            <h5>🔒 核心敏感信息 (推荐启用)</h5>
+                            <div class="rule-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_chinese_phone" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">中国手机号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_email" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">邮箱地址</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_chinese_id_card" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">身份证号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_bank_card" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">银行卡号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_jwt_token" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">JWT令牌</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 扩展个人信息 -->
+                        <div class="rule-category">
+                            <h5>👤 扩展个人信息</h5>
+                            <div class="rule-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_chinese_name">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">中文姓名 (可选)</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_license_plate" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">车牌号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_passport_number" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">护照号码</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_international_phone" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">国际手机号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_qq_number" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">QQ号码</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_wechat_id" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">微信号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_biometric_hash" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">生物特征哈希</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 金融安全 -->
+                        <div class="rule-category">
+                            <h5>💳 金融安全</h5>
+                            <div class="rule-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_cvv_code" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">CVV安全码</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_amount">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">大额交易金额</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_iban" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">国际银行账号(IBAN)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 设备与系统 -->
+                        <div class="rule-category">
+                            <h5>🔧 设备与系统</h5>
+                            <div class="rule-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_mac_address" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">MAC地址</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_database_connection" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">数据库连接串</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_ipv4_address">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">IP地址</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_url_with_params" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">URL参数</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_device_fingerprint" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">设备指纹</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_wifi_password" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">WiFi密码</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_domain_credentials" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">域名凭据</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 可选脱敏项 -->
+                        <div class="rule-category">
+                            <h5>⚠️ 可选脱敏项 (可能影响分析)</h5>
+                            <div class="rule-list">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_numeric_ids">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">数字ID</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_timestamps">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">时间戳</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_uuid">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">UUID</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_gps_coordinates">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">GPS坐标</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_base64_data">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">Base64数据</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_driver_license">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">驾照号码</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_student_id">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">学号/工号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_order_number">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">订单号</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_windows_path">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">Windows用户路径</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_education_record">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">教育记录</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="rule_company_info">
+                                    <span class="checkmark"></span>
+                                    <span class="label-text">公司信息</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 输出设置 -->
+                    <div class="config-section">
+                        <h4>输出设置</h4>
+                        <div class="form-group">
+                            <label for="outputSuffix">文件后缀</label>
+                            <input type="text" id="outputSuffix" value=".masked.log" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="outputDir">输出目录</label>
+                            <div class="input-group">
+                                <input type="text" id="outputDir" placeholder="与源文件同目录" class="form-input" readonly>
+                                <button class="btn btn-sm" id="selectOutputDirBtn">选择</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 高级选项 -->
+                    <div class="config-section">
+                        <h4>高级选项</h4>
+                        <div class="form-group">
+                            <label for="concurrency">并发数</label>
+                            <input type="number" id="concurrency" value="4" min="1" max="16" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="encoding">文件编码</label>
+                            <select id="encoding" class="form-select">
+                                <option value="utf8">UTF-8</option>
+                                <option value="gbk">GBK</option>
+                                <option value="gb2312">GB2312</option>
+                                <option value="ascii">ASCII</option>
+                            </select>
+                        </div>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="enableMasking" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">启用敏感信息脱敏</span>
+                        </label>
+                        <label class="checkbox-item sub-option" style="margin-left: 20px;">
+                            <input type="checkbox" id="maskUrlParams" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">脱敏 URL 参数值</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="skipBinaryFiles" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">跳过二进制文件</span>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部控制栏 -->
+        <footer class="app-footer">
+            <div class="progress-section">
+                <div class="progress-info">
+                    <span id="progressText">准备就绪</span>
+                    <span id="progressStats"></span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-buttons">
+                <button class="btn btn-success" id="startBtn" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                    </svg>
+                    开始处理
+                </button>
+                <button class="btn btn-warning" id="pauseBtn" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,19H18V5H14M6,19H10V5H6V19Z"/>
+                    </svg>
+                    暂停
+                </button>
+                <button class="btn btn-danger" id="cancelBtn" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                    取消
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 模态对话框 -->
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>处理结果</h3>
+                <button class="btn btn-icon modal-close" id="closeResultModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="result-summary" id="resultSummary"></div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" id="openOutputFolderBtn">打开输出文件夹</button>
+                    <button class="btn btn-secondary" id="exportLogBtn">导出日志</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置对话框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="btn btn-icon modal-close" id="closeSettingsModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-content">
+                    <div class="form-group">
+                        <label>主题</label>
+                        <select id="themeSelect" class="form-select">
+                            <option value="light">浅色</option>
+                            <option value="dark">深色</option>
+                            <option value="auto">跟随系统</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>语言</label>
+                        <select id="languageSelect" class="form-select">
+                            <option value="zh-CN">简体中文</option>
+                            <option value="en-US">English</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="autoSaveConfig" checked>
+                            <span class="checkmark"></span>
+                            <span class="label-text">自动保存配置</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="saveSettingsBtn">保存</button>
+                    <button class="btn btn-secondary" id="resetSettingsBtn">重置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载脚本 -->
+    <script src="scripts/app.js"></script>
+    <script src="scripts/config-panel.js"></script>
+    <script src="scripts/progress.js"></script>
+    <script src="components/drag-drop.js"></script>
+    <script src="components/file-list.js"></script>
+    <script src="components/settings.js"></script>
+</body>
+</html>

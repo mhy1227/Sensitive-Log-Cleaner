@@ -1,0 +1,78 @@
+{
+  "name": "log-scrubber-gui",
+  "version": "1.0.0",
+  "description": "GUI version of Log Scrubber - Enterprise-grade tool to mask sensitive data in log files",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "log",
+    "scrubber",
+    "privacy",
+    "security",
+    "masking",
+    "gui",
+    "electron",
+    "desktop"
+  ],
+  "author": "Log Scrubber Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3"
+  },
+  "devDependencies": {
+    "electron": "^33.3.2",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.logscrubber.gui",
+    "productName": "Log Scrubber",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icons/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icons/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "homepage": "https://github.com/log-scrubber/gui",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/log-scrubber/gui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/log-scrubber/gui/issues"
+  }
+}
