@@ -97,7 +97,7 @@ class SettingsComponent {
 
       this.updateUI();
     } catch (error) {
-      console.error('加载设置失败:', error);
+      // 忽略加载错误
     }
   }
 
@@ -121,7 +121,6 @@ class SettingsComponent {
       }, 1000);
 
     } catch (error) {
-      console.error('保存设置失败:', error);
       this.showMessage('保存设置失败: ' + error.message, 'error');
     }
   }
@@ -185,7 +184,6 @@ class SettingsComponent {
 
   applyLanguage() {
     // TODO: 实现语言切换逻辑
-    console.log('应用语言:', this.settings.language);
   }
 
   updateThemeElements(theme) {
@@ -221,36 +219,9 @@ class SettingsComponent {
   }
 
   showMessage(message, type = 'info') {
-    // 在设置对话框中显示消息
-    const modalBody = this.settingsModal?.querySelector('.modal-body');
-    if (!modalBody) return;
-
-    // 移除之前的消息
-    const existingMessage = modalBody.querySelector('.settings-message');
-    if (existingMessage) {
-      existingMessage.remove();
+    if (window.app && window.app.showMessage) {
+      window.app.showMessage(message, type);
     }
-
-    // 创建新消息
-    const messageEl = document.createElement('div');
-    messageEl.className = `alert alert-${type} settings-message fade-in`;
-    messageEl.textContent = message;
-
-    // 插入到设置内容前面
-    const settingsContent = modalBody.querySelector('.settings-content');
-    if (settingsContent) {
-      modalBody.insertBefore(messageEl, settingsContent);
-    }
-
-    // 自动移除
-    setTimeout(() => {
-      if (messageEl.parentNode) {
-        messageEl.style.opacity = '0';
-        setTimeout(() => {
-          messageEl.remove();
-        }, 300);
-      }
-    }, 3000);
   }
 
   // 导出设置

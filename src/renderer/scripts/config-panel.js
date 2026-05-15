@@ -29,6 +29,24 @@ class ConfigPanel {
 
     // 监听配置变化
     this.setupConfigChangeListeners();
+
+    // 监听分类折叠
+    this.setupCollapsibleListeners();
+  }
+
+  setupCollapsibleListeners() {
+    const configContent = document.querySelector('.config-content');
+    if (configContent) {
+      configContent.addEventListener('click', (e) => {
+        const header = e.target.closest('.rule-category h5');
+        if (header) {
+          const category = header.closest('.rule-category');
+          if (category) {
+            category.classList.toggle('collapsed');
+          }
+        }
+      });
+    }
   }
 
   setupConfigChangeListeners() {
@@ -183,7 +201,7 @@ class ConfigPanel {
         this.onConfigChange();
       }
     } catch (error) {
-      console.error('选择输出目录失败:', error);
+      this.showMessage('选择输出目录失败: ' + error.message, 'error');
     }
   }
 
@@ -196,8 +214,6 @@ class ConfigPanel {
 
   onConfigChange() {
     // 配置变化时的处理
-    console.log('配置已更改');
-
     // 可以在这里添加实时预览功能
     this.validateConfig();
   }
@@ -268,38 +284,8 @@ class ConfigPanel {
   }
 
   showMessage(message, type = 'info') {
-    // 创建消息提示
-    const messageEl = document.createElement('div');
-    messageEl.className = `alert alert-${type} fade-in`;
-    messageEl.textContent = message;
-
-    // 清理函数：清除定时器并移除元素
-    let timeoutId = null;
-    let fadeTimeoutId = null;
-    const cleanup = () => {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      if (fadeTimeoutId !== null) {
-        clearTimeout(fadeTimeoutId);
-        fadeTimeoutId = null;
-      }
-      if (messageEl.parentNode) {
-        messageEl.remove();
-      }
-    };
-
-    // 添加到配置面板
-    const configHeader = document.querySelector('.config-header');
-    if (configHeader) {
-      configHeader.parentNode.insertBefore(messageEl, configHeader.nextSibling);
-
-      // 自动移除（防止内存泄漏）
-      timeoutId = setTimeout(() => {
-        messageEl.style.opacity = '0';
-        fadeTimeoutId = setTimeout(cleanup, 300);
-      }, 2000);
+    if (window.app && window.app.showMessage) {
+      window.app.showMessage(message, type);
     }
   }
 

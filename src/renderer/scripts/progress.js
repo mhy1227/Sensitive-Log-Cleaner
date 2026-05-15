@@ -139,6 +139,16 @@ class ProgressManager {
     if (this.stats.processingTime > 0) {
       if (statsText) statsText += ' | ';
       statsText += `耗时: ${this.formatTime(this.stats.processingTime)}`;
+    } else if (this.startTime && this.totalFiles > 0) {
+      const elapsed = Date.now() - this.startTime;
+      const processed = this.completedFiles + this.errorFiles;
+      if (processed > 0) {
+        const remaining = this.totalFiles - processed;
+        const timePerFile = elapsed / processed;
+        const estimatedRemaining = remaining * timePerFile;
+        if (statsText) statsText += ' | ';
+        statsText += `预计剩余: ${this.formatTime(estimatedRemaining)}`;
+      }
     }
 
     this.progressStats.textContent = statsText;
@@ -202,7 +212,6 @@ class ProgressManager {
   // 显示详细进度信息
   showDetailedProgress() {
     const stats = this.getDetailedStats();
-
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `

@@ -231,16 +231,20 @@
   background-color: var(--bg-primary);
   margin-bottom: var(--spacing-xs);
   transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
 }
 
 .file-checkbox {
   margin: 0 !important;
   padding: 0 !important;
+  z-index: 2;
 }
 
 .file-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-secondary);
   border-color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
 }
 
 .file-item.processing {
@@ -277,6 +281,9 @@
 .file-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .file-name {
@@ -285,19 +292,49 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: var(--font-size-base);
 }
 
 .file-details {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   display: flex;
-  gap: var(--spacing-sm);
+  align-items: center;
+  gap: var(--spacing-md);
 }
 
-.file-status {
-  width: 20px;
-  height: 20px;
+.file-details span:not(:last-child) {
+  position: relative;
+}
+
+.file-details span:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: calc(var(--spacing-md) / -2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 10px;
+  background-color: var(--border-color);
+  opacity: 0.6;
+}
+
+.file-status-icon {
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-status-text {
+  font-weight: 500;
+}
+
+.file-error {
+  color: var(--danger-color);
+  font-weight: 600;
 }
 
 .file-actions {
@@ -703,10 +740,39 @@
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast);
+}
+
+.rule-category h5:hover {
+  color: var(--primary-color);
+}
+
+.rule-category h5::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  transition: transform var(--transition-fast);
+}
+
+.rule-category.collapsed h5::after {
+  transform: rotate(-90deg);
+}
+
+.rule-category.collapsed .rule-list {
+  display: none;
 }
 
 .rule-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  animation: fadeIn var(--transition-fast);
 }

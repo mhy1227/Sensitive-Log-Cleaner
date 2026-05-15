@@ -8,6 +8,7 @@ class LogScrubberApp {
     this.dragDropHandler = null;
     this.configPanel = null;
     this.progressManager = null;
+    this.toastContainer = null;
 
     this.isProcessing = false;
     this.isPaused = false;
@@ -26,7 +27,6 @@ class LogScrubberApp {
         this.initComponents();
       }
     } catch (error) {
-      console.error('应用初始化失败:', error);
       this.showError('应用初始化失败: ' + error.message);
     }
   }
@@ -37,6 +37,7 @@ class LogScrubberApp {
     this.dragDropHandler = new DragDropHandler();
     this.configPanel = new ConfigPanel();
     this.progressManager = new ProgressManager();
+    this.initToastContainer();
 
     // 设置组件关联
     this.dragDropHandler.setFileManager(this.fileListComponent);
@@ -50,8 +51,6 @@ class LogScrubberApp {
 
     // 更新UI状态
     this.updateUI();
-
-    console.log('应用初始化完成');
   }
 
   setupEventListeners() {
@@ -90,6 +89,11 @@ class LogScrubberApp {
   }
 
   setupIpcListeners() {
+    if (!window.electronAPI || !window.electronAPI.on) {
+      console.warn('Electron API or IPC listeners not available.');
+      return;
+    }
+
     // 监听处理进度
     window.electronAPI.on('processing:start', (data) => {
       this.onProcessingStart(data);
@@ -110,6 +114,16 @@ class LogScrubberApp {
   }
 
   async loadConfig() {
+    if (!window.electronAPI) {
+      this.currentConfig = {
+        options: { outputSuffix: '.masked.log', encoding: 'utf8', concurrency: 4 },
+        sensitiveKeys: [],
+        patterns: [],
+        defaultMask: '***'
+      };
+      return;
+    }
+
     try {
       // 加载默认配置
       const defaultConfig = await window.electronAPI.config.getDefault();
@@ -149,10 +163,7 @@ class LogScrubberApp {
       if (this.configPanel) {
         this.configPanel.setConfig(this.currentConfig);
       }
-
-      console.log('配置加载完成:', this.currentConfig);
     } catch (error) {
-      console.error('加载配置失败:', error);
       this.showError('加载配置失败: ' + error.message);
     }
   }
@@ -162,17 +173,14 @@ class LogScrubberApp {
       if (this.configPanel) {
         this.currentConfig = this.configPanel.getConfig();
         await window.electronAPI.config.save(this.currentConfig);
-        console.log('配置保存成功');
       }
     } catch (error) {
-      console.error('保存配置失败:', error);
       this.showError('保存配置失败: ' + error.message);
     }
   }
 
   async startProcessing() {
     if (this.isProcessing) {
-      console.warn('已在处理中');
       return;
     }
 
@@ -196,13 +204,10 @@ class LogScrubberApp {
 
       // 开始处理
       const filePaths = selectedFiles.map(file => file.path);
-      console.log('开始处理文件:', filePaths);
 
       const results = await window.electronAPI.process.files(filePaths, options);
-      console.log('处理完成:', results);
 
     } catch (error) {
-      console.error('处理失败:', error);
       this.showError('处理失败: ' + error.message);
       this.isProcessing = false;
       this.updateUI();
@@ -218,12 +223,10 @@ class LogScrubberApp {
         throw new Error(res?.error || '暂停失败');
       }
       this.isPaused = true;
-      console.log('处理已暂停');
       this.updateUI();
       this.progressManager.pause();
       this.showMessage('处理已暂停，点击继续按钮恢复', 'warning');
     } catch (error) {
-      console.error('暂停失败:', error);
       this.showError('暂停失败: ' + (error?.message || String(error)));
     }
   }
@@ -237,12 +240,10 @@ class LogScrubberApp {
         throw new Error(res?.error || '继续失败');
       }
       this.isPaused = false;
-      console.log('处理已继续');
       this.updateUI();
       this.progressManager.resume();
       this.showMessage('处理已继续', 'success');
     } catch (error) {
-      console.error('继续失败:', error);
       this.showError('继续失败: ' + (error?.message || String(error)));
     }
   }
@@ -271,7 +272,6 @@ class LogScrubberApp {
       this.progressManager.setCustomStatus('正在取消...', null);
       this.showMessage('正在取消处理，请稍候...', 'warning');
     } catch (error) {
-      console.error('取消失败:', error);
       this.showError('取消失败: ' + (error?.message || String(error)));
     }
   }
@@ -299,13 +299,10 @@ class LogScrubberApp {
   }
 
   onProcessingStart(data) {
-    console.log('处理开始:', data);
     this.progressManager.start(data.totalFiles);
   }
 
   onProcessingProgress(data) {
-    console.log('处理进度:', data);
-
     switch (data.type) {
       case 'file-start':
         this.fileListComponent.updateFileStatus(data.filePath, 'processing');
@@ -349,8 +346,6 @@ class LogScrubberApp {
   }
 
   onProcessingComplete(data) {
-    console.log('处理完成:', data);
-
     this.isProcessing = false;
     this.isPaused = false;
     this.isCancelling = false;
@@ -427,10 +422,7 @@ class LogScrubberApp {
 
   setupResultModalEvents(data) {
     const modal = document.getElementById('resultModal');
-    if (!modal) {
-      console.warn('resultModal element not found');
-      return;
-    }
+    if (!modal) return;
 
     const closeBtn = document.getElementById('closeResultModal');
     const openFolderBtn = document.getElementById('openOutputFolderBtn');
@@ -450,8 +442,6 @@ class LogScrubberApp {
         if (successful.length > 0 && successful[0].outputPath) {
           // 使用 showItemInFolder 跨平台定位文件
           await window.electronAPI.shell.showItemInFolder(successful[0].outputPath);
-        } else {
-          console.warn('No successfully processed files with output path');
         }
       });
     }
@@ -597,86 +587,59 @@ class LogScrubberApp {
   }
 
   showError(message) {
-    // 创建错误提示
-    const errorEl = document.createElement('div');
-    errorEl.className = 'alert alert-danger fade-in';
-
-    // 使用安全的模板（不包含用户数据）
-    errorEl.innerHTML = `
-      <strong>错误:</strong> <span class="error-message"></span>
-      <button class="btn btn-sm btn-icon close-error" type="button" style="float: right;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-        </svg>
-      </button>
-    `;
-
-    // 使用 textContent 安全设置错误消息
-    const msgEl = errorEl.querySelector('.error-message');
-    if (msgEl) {
-      msgEl.textContent = message;
-    }
-
-    // 清理函数：移除定时器并从 DOM 中移除元素
-    let timeoutId = null;
-    const cleanup = () => {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      if (errorEl.parentNode) {
-        errorEl.remove();
-      }
-    };
-
-    // 使用 addEventListener 绑定关闭事件
-    const closeBtn = errorEl.querySelector('.close-error');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', cleanup);
-    }
-
-    // 添加到页面顶部
-    const container = document.querySelector('.app-container');
-    if (container) {
-      container.insertBefore(errorEl, container.firstChild);
-
-      // 自动移除（使用清理函数防止内存泄漏）
-      timeoutId = setTimeout(cleanup, 5000);
-    }
+    this.showMessage(message, 'error', '错误');
   }
 
-  showMessage(message, type = 'info') {
-    // 创建消息提示
-    const messageEl = document.createElement('div');
-    messageEl.className = `alert alert-${type} fade-in`;
-    messageEl.textContent = message;
+  initToastContainer() {
+    this.toastContainer = document.createElement('div');
+    this.toastContainer.className = 'toast-container';
+    document.body.appendChild(this.toastContainer);
+  }
 
-    // 清理函数
-    let timeoutId = null;
-    const cleanup = () => {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      if (messageEl.parentNode) {
-        messageEl.remove();
-      }
+  showMessage(message, type = 'info', title = '') {
+    if (!this.toastContainer) this.initToastContainer();
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const titles = {
+      success: '成功',
+      error: '错误',
+      warning: '警告',
+      info: '提示'
     };
 
-    // 关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn btn-sm btn-icon';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.style.cssText = 'float: right; margin-left: 8px; border: none; background: none; cursor: pointer; font-size: 18px; padding: 0 4px;';
-    closeBtn.onclick = cleanup;
-    messageEl.prepend(closeBtn);
+    // 使用安全的 DOM 操作防止 XSS
+    const content = document.createElement('div');
+    content.className = 'toast-content';
 
-    // 添加到页面顶部
-    const container = document.querySelector('.app-container');
-    if (container) {
-      container.insertBefore(messageEl, container.firstChild);
-      timeoutId = setTimeout(cleanup, 3000);
-    }
+    const titleEl = document.createElement('span');
+    titleEl.className = 'toast-title';
+    titleEl.textContent = title || titles[type] || '提示';
+
+    const messageEl = document.createElement('span');
+    messageEl.className = 'toast-message';
+    messageEl.textContent = message;
+
+    content.appendChild(titleEl);
+    content.appendChild(messageEl);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.innerHTML = '&times;';
+
+    toast.appendChild(content);
+    toast.appendChild(closeBtn);
+
+    this.toastContainer.appendChild(toast);
+
+    const cleanup = () => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
+    };
+
+    toast.querySelector('.toast-close').addEventListener('click', cleanup);
+    setTimeout(cleanup, 5000);
   }
 
   updateUI() {

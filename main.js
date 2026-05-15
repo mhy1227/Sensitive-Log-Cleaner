@@ -415,7 +415,27 @@ ipcMain.handle('dialog:saveFile', async (event, defaultPath) => {
 // 文件信息获取
 ipcMain.handle('file:getInfo', async (event, filePath) => {
   try {
-    const safePath = validateFilePath(filePath);
+    // 检查是否是asar内部路径（拖拽时可能产生）
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('无效的文件路径');
+    }
+
+    // 处理asar路径格式
+    let realPath = filePath;
+    if (filePath.includes('app.asar')) {
+      // asar内部路径，尝试提取真实路径
+      const asarMatch = filePath.match(/app\.asar[\/\\](.+)/);
+      if (asarMatch) {
+        realPath = path.join(process.resourcesPath, '..', asarMatch[1]);
+      }
+    }
+
+    // 确保是绝对路径
+    if (!path.isAbsolute(realPath)) {
+      throw new Error('必须是绝对路径');
+    }
+
+    const safePath = validateFilePath(realPath);
     const stats = fs.statSync(safePath);
     return {
       size: stats.size,
@@ -425,10 +445,17 @@ ipcMain.handle('file:getInfo', async (event, filePath) => {
       created: stats.birthtime
     };
   } catch (error) {
-    if (error.message.includes('访问被拒绝') || error.message.includes('无效的文件路径')) {
-      throw new Error(`文件路径无效或无权限访问: ${error.message}`);
+    // 根据错误类型返回不同消息
+    const errorMsg = error.message || String(error);
+    if (errorMsg.includes('访问被拒绝') ||
+        errorMsg.includes('无效的文件路径') ||
+        errorMsg.includes('必须是绝对路径') ||
+        errorMsg.includes('ENOENT') ||
+        errorMsg.includes('no such file') ||
+        errorMsg.includes('文件不存在')) {
+      throw new Error(`文件路径无效或无权限访问`);
     }
-    throw new Error(`无法获取文件信息: ${error.message}`);
+    throw new Error(`无法获取文件信息: ${errorMsg}`);
   }
 });
 

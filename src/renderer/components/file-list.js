@@ -16,7 +16,6 @@ class FileListComponent {
 
   init() {
     if (!this.fileList) {
-      console.error('File list element not found');
       return;
     }
 
@@ -46,13 +45,45 @@ class FileListComponent {
         this.deselectAllFiles();
       });
     }
+
+    // 事件委托：处理文件列表中的点击事件
+    if (this.fileList) {
+      this.fileList.addEventListener('click', (e) => {
+        const target = e.target;
+        const fileItem = target.closest('.file-item');
+        if (!fileItem) return;
+
+        const filePath = fileItem.dataset.filePath;
+
+        // 处理删除按钮
+        if (target.closest('.file-action-remove')) {
+          this.removeFile(filePath);
+          return;
+        }
+
+        // 处理信息按钮
+        if (target.closest('.file-action-info')) {
+          this.showFileInfo(filePath);
+          return;
+        }
+      });
+
+      // 处理复选框变化
+      this.fileList.addEventListener('change', (e) => {
+        if (e.target.classList.contains('file-select')) {
+          const fileItem = e.target.closest('.file-item');
+          if (fileItem) {
+            this.toggleFileSelection(fileItem.dataset.filePath, e.target.checked);
+          }
+        }
+      });
+    }
   }
 
   async addFile(filePath) {
     try {
       // 检查文件是否已存在
       if (this.files.has(filePath)) {
-        console.warn('文件已存在:', filePath);
         return false;
       }
 
@@ -61,7 +92,7 @@ class FileListComponent {
       try {
         fileInfo = await window.electronAPI.file.getInfo(filePath);
       } catch (infoError) {
-        console.warn('获取文件信息失败:', infoError.message);
+        // 忽略信息获取错误
       }
 
       // 尝试验证文件（可选，不影响文件添加到列表）
@@ -70,7 +101,6 @@ class FileListComponent {
         validation = await window.electronAPI.file.validate(filePath);
       } catch (validateError) {
         validation = { valid: false, error: validateError.message };
-        console.warn('文件验证失败:', validateError.message);
       }
 
       const file = {
@@ -95,8 +125,6 @@ class FileListComponent {
 
       return true;
     } catch (error) {
-      console.error('添加文件失败:', error);
-
       // 即使出错也将文件添加到列表中（显示错误状态）
       const file = {
         path: filePath,
@@ -212,9 +240,10 @@ class FileListComponent {
         <div class="file-name"></div>
         <div class="file-details">
           <span class="file-size"></span>
+          <span class="file-status-text"></span>
         </div>
       </div>
-      <div class="file-status">
+      <div class="file-status-icon">
         ${this.getStatusIcon(file.status)}
       </div>
       <div class="file-actions">
@@ -248,39 +277,19 @@ class FileListComponent {
       fileSizeEl.textContent = this.formatFileSize(file.size);
     }
 
-    // 如果有错误，添加错误标签
-    if (file.error) {
-      const fileDetailsEl = fileItem.querySelector('.file-details');
-      if (fileDetailsEl) {
-        const errorSpan = document.createElement('span');
-        errorSpan.className = 'file-error';
-        errorSpan.textContent = file.status === 'canceled' ? '已取消' : '错误';
-        errorSpan.title = file.error;
-        fileDetailsEl.appendChild(errorSpan);
+    const statusTextEl = fileItem.querySelector('.file-status-text');
+    if (statusTextEl) {
+      statusTextEl.textContent = this.getStatusText(file.status);
+      if (file.status === 'error' || file.status === 'canceled') {
+        statusTextEl.classList.add('file-error');
+        if (file.error) statusTextEl.title = file.error;
       }
     }
 
-    // 使用 addEventListener 绑定事件（替代内联 onclick）
+    // 设置复选框状态
     const checkbox = fileItem.querySelector('.file-select');
     if (checkbox) {
       checkbox.checked = file.selected;
-      checkbox.addEventListener('change', (e) => {
-        this.toggleFileSelection(file.path, e.target.checked);
-      });
-    }
-
-    const infoBtn = fileItem.querySelector('.file-action-info');
-    if (infoBtn) {
-      infoBtn.addEventListener('click', () => {
-        this.showFileInfo(file.path);
-      });
-    }
-
-    const removeBtn = fileItem.querySelector('.file-action-remove');
-    if (removeBtn) {
-      removeBtn.addEventListener('click', () => {
-        this.removeFile(file.path);
-      });
     }
   }
 
@@ -301,9 +310,19 @@ class FileListComponent {
     fileItem.className = `file-item ${file.status}`;
 
     // 更新状态图标
-    const statusIcon = fileItem.querySelector('.file-status');
+    const statusIcon = fileItem.querySelector('.file-status-icon');
     if (statusIcon) {
       statusIcon.innerHTML = this.getStatusIcon(file.status);
+    }
+
+    const statusText = fileItem.querySelector('.file-status-text');
+    if (statusText) {
+      statusText.textContent = this.getStatusText(file.status);
+      statusText.className = 'file-status-text'; // Reset
+      if (file.status === 'error' || file.status === 'canceled') {
+        statusText.classList.add('file-error');
+        if (file.error) statusText.title = file.error;
+      }
     }
 
     // 更新进度（如果有）
