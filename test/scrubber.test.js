@@ -90,6 +90,26 @@ describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）"
     expect(scrub("monkey: banana").hasChanges).toBe(false));
 });
 
+describe("高置信度服务密钥（回归：此前完全漏脱）", () => {
+  it("AWS Access Key", () =>
+    expect(scrub("aws AKIAIOSFODNN7EXAMPLE done").masked).toBe("aws AKIA**************** done"));
+  it("GitHub token", () =>
+    expect(scrub("gh ghp_1234567890abcdefghijklmnopqrstuvwxyzAB x").hasChanges).toBe(true));
+  it("OpenAI key", () =>
+    expect(scrub("sk-proj-abcdefghijklmnopqrstuvwxyz1234").hasChanges).toBe(true));
+  it("Slack token", () => expect(scrub("xoxb-123456789012-abcdefABCDEF").hasChanges).toBe(true));
+  it("Google API key", () =>
+    expect(scrub("AIzaSyA1234567890abcdefghijklmnopqrstuv").hasChanges).toBe(true));
+  it("PEM 私钥块", () =>
+    expect(scrub("-----BEGIN RSA PRIVATE KEY-----").hasChanges).toBe(true));
+
+  // 误报守卫：普通文本不应命中这些前缀规则
+  it("普通含 sk- 词不误脱（task-...）", () =>
+    expect(scrub("task-management-board-component").hasChanges).toBe(false));
+  it("普通大写串不误脱", () =>
+    expect(scrub("STATUS REPORT GENERATED OK").hasChanges).toBe(false));
+});
+
 describe("无分隔符键名变体（回归：apikey 等漏脱）", () => {
   it("apikey 多参不漏", () => {
     const out = scrub("/cb?token=SECRETtk&apikey=SECRETak&password=SECRETpw&page=2").masked;

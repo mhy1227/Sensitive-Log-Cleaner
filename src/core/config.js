@@ -129,6 +129,65 @@ const PATTERNS = [
     category: 'temporal'
   },
 
+  // === 高置信度服务密钥（前缀特征明显，误报近乎为零，默认启用） ===
+  // 这些格式此前完全无规则、只能指望 base64 兜底，而 AWS/GitHub/OpenAI/Slack/私钥 大多兜不住、直接泄露。
+  {
+    name: 'aws_access_key',
+    description: 'AWS Access Key ID',
+    regex: /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b/g,
+    replacement: 'AKIA****************',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'github_token',
+    description: 'GitHub personal/OAuth/app token',
+    regex: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g,
+    replacement: 'ghp_***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'openai_key',
+    description: 'OpenAI API key (sk-...)',
+    regex: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g,
+    replacement: 'sk-***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'slack_token',
+    description: 'Slack token (xox[baprs]-...)',
+    regex: /\bxox[baprs]-[0-9A-Za-z-]{10,}\b/g,
+    replacement: 'xox***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'google_api_key',
+    description: 'Google API key (AIza...)',
+    regex: /\bAIza[0-9A-Za-z_-]{35}\b/g,
+    replacement: 'AIza***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'stripe_key',
+    description: 'Stripe secret/restricted key',
+    regex: /\b(?:sk|rk)_(?:live|test)_[0-9a-zA-Z]{16,}\b/g,
+    replacement: 'sk_live_***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'private_key_block',
+    description: 'PEM 私钥块起始标记',
+    regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/g,
+    replacement: '-----BEGIN PRIVATE KEY----- ***',
+    enabled: true,
+    category: 'security'
+  },
+
   // === 新增的敏感信息类型 ===
 
   // 个人标识符
