@@ -168,6 +168,23 @@ class LogScrubber {
   }
 
   /**
+   * Mask the token in an Authorization header: Authorization: <scheme> <token>.
+   * 把 scheme+token 整体掩码。必须在 maskKeyValuePairs 之前调用——否则 KV 会先把 value
+   * 取到第一个空格、只掩掉 scheme(Bearer/Basic)，真正的 token 漏脱（尤其无数字的 Basic
+   * base64 不会被 base64 规则兜住，直接泄露）。
+   */
+  maskAuthHeaders(line) {
+    let masked = line;
+    let hasChanges = false;
+    const authRegex = /(\b(?:proxy-)?authorization\b["']?\s*[:=]\s*["']?)((?:bearer|basic|digest|token|ntlm|hmac)\s+[^\s;,&"']+|[^\s;,&"']+)/gi;
+    masked = masked.replace(authRegex, (m, prefix) => {
+      hasChanges = true;
+      return prefix + this.defaultMask;
+    });
+    return { masked, hasChanges };
+  }
+
+  /**
    * Mask key-value pairs where the key is sensitive
    * Supports formats: key=value, key: value, key => value, key -> value
    */
@@ -190,8 +207,10 @@ class LogScrubber {
       .map((sep) => String(sep).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
       .join("|");
 
+    // value 排除 , ; & —— 否则 token=abc&other=keep 会把 &other=keep 一起吞掉打码
+    // （静默删数据，比漏报更糟）。与 maskSensitiveKeywords 的 value 取值口径保持一致。
     const kvRegex = new RegExp(
-      `(\\b[\\w.-]+)(\\s*(?:${separatorPattern})\\s*)([^\\s\\n\\r]+)`,
+      `(\\b[\\w.-]+)(\\s*(?:${separatorPattern})\\s*)([^\\s\\n\\r,;&]+)`,
       "gi"
     );
 
@@ -232,18 +251,31 @@ class LogScrubber {
       return { masked, hasChanges };
     }
 
-    // Look for sensitive keywords followed by separators and values
+    // Look for sensitive keywords followed by separators and values.
+    // ASCII 关键词用 \b 词边界（避免 monkey 命中 key）；CJK 关键词（密码/密钥…）无 ASCII
+    // 词边界，单独成支不带 \b。分隔符含半角 : = 与全角 ：；value 同时排除全角标点。
     try {
-      const keywordPattern = keys.join("|");
-      // Note: added & to handle URL query parameters like token=abc&password=secret
+      const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const asciiKeys = keys.filter((k) => /^[\x00-\x7F]+$/.test(k)).map(esc);
+      const cjkKeys = keys.filter((k) => !/^[\x00-\x7F]+$/.test(k)).map(esc);
+
+      const alts = [];
+      if (asciiKeys.length) alts.push(`\\b(?:${asciiKeys.join("|")})\\b`);
+      if (cjkKeys.length) alts.push(`(?:${cjkKeys.join("|")})`);
+      if (alts.length === 0) return { masked, hasChanges };
+
+      // group1 = 关键词+(可选引号)+分隔符+(可选引号)（保留），group2 = 值（替换为掩码）。
+      // 容忍 key/value 两侧引号，覆盖带前缀的 JSON 日志（2026 INFO {"password":"x"}）
+      // 与引号 KV（"token":"x"）——否则这类极常见的结构化日志会整条漏脱。
+      // value 同时排除引号，避免把闭合引号吃进掩码。
       const keywordRegex = new RegExp(
-        `\\b(?:${keywordPattern})\\b\\s*[:=]\\s*([^\\s\\n\\r,;&]+)`,
+        `((?:${alts.join("|")})["']?\\s*[:=：]\\s*["']?)([^\\s\\n\\r,;&，。；"']+)`,
         "gi"
       );
 
-      masked = masked.replace(keywordRegex, (match, value) => {
+      masked = masked.replace(keywordRegex, (match, prefix) => {
         hasChanges = true;
-        return match.replace(value, this.defaultMask);
+        return prefix + this.defaultMask;
       });
     } catch (regexError) {
       console.warn('Error in keyword regex:', regexError.message);
@@ -288,12 +320,10 @@ class LogScrubber {
         const matchCount = (masked.match(regex) || []).length;
 
         if (matchCount > 0) {
-          hasChanges = true;
-          matches[pattern.name] = matchCount;
-
           // 防御性检查：确保 replacement 是有效类型
           const replacement = pattern.replacement;
 
+          const before = masked;
           if (typeof replacement === 'function') {
             masked = masked.replace(regex, replacement);
           } else if (typeof replacement === 'string' || typeof replacement === 'undefined') {
@@ -301,6 +331,13 @@ class LogScrubber {
           } else {
             console.warn('Invalid replacement type for pattern:', pattern.name, typeof replacement);
             masked = masked.replace(regex, this.defaultMask);
+          }
+
+          // 仅在文本确实改变时才计 hasChanges/matches —— 否则像 sql_parameter_masking
+          // 这种“函数返回原值”的规则会虚报脱敏（统计不准）。
+          if (masked !== before) {
+            hasChanges = true;
+            matches[pattern.name] = matchCount;
           }
         }
       } catch (regexError) {
@@ -338,7 +375,12 @@ class LogScrubber {
         result = jsonResult.masked;
         lineHasChanges = jsonResult.hasChanges;
       } else {
-        // Step 1: Mask key-value pairs (text mode)
+        // Step 1a: Authorization 头特例（必须在 KV 之前，否则 KV 只掩 scheme、token 漏脱）
+        const authResult = this.maskAuthHeaders(result);
+        result = authResult.masked;
+        lineHasChanges = lineHasChanges || authResult.hasChanges;
+
+        // Step 1b: Mask key-value pairs (text mode)
         const kvResult = this.maskKeyValuePairs(result);
         result = kvResult.masked;
         lineHasChanges = lineHasChanges || kvResult.hasChanges;

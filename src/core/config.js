@@ -4,12 +4,13 @@
 
 // Sensitive key patterns (case-insensitive)
 const SENSITIVE_KEYS = [
-  // 密码相关
-  'password', 'passwd', 'pwd', 'pass', 'passphrase',
+  // 密码相关（移除裸 'pass'：与 "test pass"/"pass: ok" 冲突；password/passwd/pwd 覆盖）
+  'password', 'passwd', 'pwd', 'passphrase',
 
-  // 令牌相关
+  // 令牌相关（移除裸 'auth'：与 "auth: success/failed" 冲突；authorization/auth_token/
+  // authtoken/oauth 覆盖。Authorization 头另由 maskAuthHeaders 专门处理）
   'token', 'access_token', 'refresh_token', 'auth_token', 'api_token', 'bearer_token',
-  'authorization', 'auth', 'bearer', 'oauth', 'jwt',
+  'authorization', 'bearer', 'oauth', 'jwt',
 
   // 会话相关
   'cookie', 'session', 'sessionid', 'jsessionid', 'csrf_token', 'xsrf_token',
@@ -18,12 +19,22 @@ const SENSITIVE_KEYS = [
   'secret', 'key', 'private_key', 'public_key', 'api_key', 'app_key', 'app_secret',
   'client_secret', 'consumer_secret', 'encryption_key', 'decrypt_key',
 
+  // 无分隔符变体（apikey/accesstoken 等极常见拼法，原列表只有下划线版会漏）
+  'apikey', 'apitoken', 'apisecret', 'accesstoken', 'refreshtoken', 'authtoken',
+  'bearertoken', 'accesskey', 'secretkey', 'privatekey', 'publickey',
+  'appkey', 'appsecret', 'clientsecret', 'accountkey',
+
   // 凭据相关
-  'credential', 'credentials', 'cred', 'cert', 'certificate',
-  'signature', 'sign', 'hash', 'salt',
+  // 注意：移除了 'sign'/'hash'/'cert'/'salt'（与 "sign in"/"file hash"/"cert: valid"/
+  // "salt: ..." 等常见日志词冲突，大面积误掩；敏感场景由 'signature'/'certificate' 与
+  // hex_key/base64 规则覆盖）。
+  'credential', 'credentials', 'cred', 'certificate',
+  'signature',
 
   // 验证相关
-  'pin', 'code', 'otp', 'captcha', 'verification_code', 'verify_code',
+  // 注意：移除了 'code'（与 "status code"/"error code"/"exit code" 冲突，几乎每条日志都误掩；
+  // OTP 场景由 'otp'/'captcha'/'verification_code'/'verify_code'/'pin' 覆盖）。
+  'pin', 'otp', 'captcha', 'verification_code', 'verify_code',
 
   // 数据库相关
   'db_password', 'database_password', 'mysql_password', 'redis_password',
@@ -31,7 +42,10 @@ const SENSITIVE_KEYS = [
 
   // 支付相关
   'cvv', 'cvc', 'security_code', 'card_number', 'account_number',
-  'bank_account', 'payment_method'
+  'bank_account', 'payment_method',
+
+  // 中文键名（针对中文日志；仅在带 : ： = 赋值分隔符时生效，避免误伤自然语言）
+  '密码', '口令', '密钥', '密匙', '秘钥', '令牌', '凭证', '凭据', '访问令牌', '刷新令牌'
 ];
 
 // Regex patterns for different types of sensitive data
@@ -117,6 +131,65 @@ const PATTERNS = [
     category: 'temporal'
   },
 
+  // === 高置信度服务密钥（前缀特征明显，误报近乎为零，默认启用） ===
+  // 这些格式此前完全无规则、只能指望 base64 兜底，而 AWS/GitHub/OpenAI/Slack/私钥 大多兜不住、直接泄露。
+  {
+    name: 'aws_access_key',
+    description: 'AWS Access Key ID',
+    regex: /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b/g,
+    replacement: 'AKIA****************',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'github_token',
+    description: 'GitHub personal/OAuth/app token',
+    regex: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g,
+    replacement: 'ghp_***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'openai_key',
+    description: 'OpenAI API key (sk-...)',
+    regex: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g,
+    replacement: 'sk-***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'slack_token',
+    description: 'Slack token (xox[baprs]-...)',
+    regex: /\bxox[baprs]-[0-9A-Za-z-]{10,}\b/g,
+    replacement: 'xox***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'google_api_key',
+    description: 'Google API key (AIza...)',
+    regex: /\bAIza[0-9A-Za-z_-]{35}\b/g,
+    replacement: 'AIza***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'stripe_key',
+    description: 'Stripe secret/restricted key',
+    regex: /\b(?:sk|rk)_(?:live|test)_[0-9a-zA-Z]{16,}\b/g,
+    replacement: 'sk_live_***',
+    enabled: true,
+    category: 'security'
+  },
+  {
+    name: 'private_key_block',
+    description: 'PEM 私钥块起始标记',
+    regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/g,
+    replacement: '-----BEGIN PRIVATE KEY----- ***',
+    enabled: true,
+    category: 'security'
+  },
+
   // === 新增的敏感信息类型 ===
 
   // 个人标识符
@@ -131,7 +204,9 @@ const PATTERNS = [
   {
     name: 'license_plate',
     description: '车牌号',
-    regex: /\b[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{4,5}[A-Z0-9挂学警港澳]\b/g,
+    // 修正：原 \b 是 ASCII 词边界，而车牌以中文省份字开头（非 \w），前接空格时
+    // 不存在词边界 → 永远匹配不到。改用“前后非字母数字”的环视，兼容中文后缀（学/警/港澳）。
+    regex: /(?<![A-Za-z0-9])[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{4,5}[A-Z0-9挂学警港澳](?![A-Za-z0-9])/g,
     replacement: '***A12345',
     enabled: false, // 默认禁用
     category: 'personal'
@@ -473,8 +548,8 @@ const PATTERNS = [
   }
 ];
 
-// Key-value separators
-const KV_SEPARATORS = ['=', ':', '=>', '->'];
+// Key-value separators（含中文全角冒号 ：）
+const KV_SEPARATORS = ['=', ':', '：', '=>', '->'];
 
 // Default replacement text
 const DEFAULT_MASK = '***';
