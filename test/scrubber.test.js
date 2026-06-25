@@ -90,6 +90,20 @@ describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）"
     expect(scrub("monkey: banana").hasChanges).toBe(false));
 });
 
+describe("过宽关键词误报（回归：code/hash/sign 误掩常见日志词）", () => {
+  it("HTTP 状态码不掩", () => expect(scrub("HTTP status code: 200").hasChanges).toBe(false));
+  it("错误码不掩", () => expect(scrub("error code: 500 timeout").hasChanges).toBe(false));
+  it("退出码不掩", () => expect(scrub("process exit code: 0").hasChanges).toBe(false));
+  it("file hash 标签不掩", () => expect(scrub("file hash: verifying now").hasChanges).toBe(false));
+  it("sign in 文案不掩", () => expect(scrub("sign: please review").hasChanges).toBe(false));
+
+  // 真敏感仍脱（确保没误删）
+  it("X-API-Key 头仍脱", () => expect(scrub("X-API-Key: SECRETkey456").hasChanges).toBe(true));
+  it("X-Auth-Token 头仍脱", () => expect(scrub("X-Auth-Token: SECRETtok").hasChanges).toBe(true));
+  it("password 仍脱", () => expect(scrub("password=SECRETpw").hasChanges).toBe(true));
+  it("otp 仍脱", () => expect(scrub("otp: 123456").hasChanges).toBe(true));
+});
+
 describe("Authorization 头（回归：只掩 scheme、token 泄露）", () => {
   it("Bearer token 整体掩码", () =>
     expect(scrub("Authorization: Bearer abc123XYZsecrettoken456").masked).toBe(

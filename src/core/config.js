@@ -19,11 +19,15 @@ const SENSITIVE_KEYS = [
   'client_secret', 'consumer_secret', 'encryption_key', 'decrypt_key',
 
   // 凭据相关
+  // 注意：移除了 'sign'/'hash'（与日志常见词 "sign in"/"file hash" 冲突，大面积误掩；
+  // 敏感场景由 'signature' 与 hex_key/base64 规则覆盖）。
   'credential', 'credentials', 'cred', 'cert', 'certificate',
-  'signature', 'sign', 'hash', 'salt',
+  'signature', 'salt',
 
   // 验证相关
-  'pin', 'code', 'otp', 'captcha', 'verification_code', 'verify_code',
+  // 注意：移除了 'code'（与 "status code"/"error code"/"exit code" 冲突，几乎每条日志都误掩；
+  // OTP 场景由 'otp'/'captcha'/'verification_code'/'verify_code'/'pin' 覆盖）。
+  'pin', 'otp', 'captcha', 'verification_code', 'verify_code',
 
   // 数据库相关
   'db_password', 'database_password', 'mysql_password', 'redis_password',
