@@ -55,7 +55,9 @@ const PATTERNS = [
   {
     name: 'chinese_id_card',
     description: 'Chinese ID card numbers (18 digits)',
-    regex: /\b(\d{3})\d{6}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g,
+    // 修正：身份证 = 6 位地区码 + 8 位生日 + 3 位顺序 + 1 位校验 = 18 位。
+    // 原正则 (\d{3})\d{6} 在年份前吃掉 9 位 → 总长要求 21 位 → 永远匹配不到。
+    regex: /\b(\d{3})\d{3}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g,
     replacement: '$1***************',
     enabled: true, // 默认启用
     category: 'personal'
@@ -71,8 +73,11 @@ const PATTERNS = [
   {
     name: 'jwt_token',
     description: 'JWT tokens',
-    regex: /\b[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b/g,
-    replacement: 'eyJ***.***.***.***',
+    // 修正：原 [\w-]+\.[\w-]+\.[\w-]+ 会误吃任何三段点号串（a.b.c、app.module.js、1.2.3）。
+    // 真 JWT 的 header/payload 是 base64url(JSON)，恒以 eyJ 开头（'{"' 的 base64），
+    // 据此要求前两段以 eyJ 开头，消除误报。
+    regex: /\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+    replacement: 'eyJ***.***.***',
     enabled: true, // 默认启用
     category: 'security'
   },
@@ -206,7 +211,11 @@ const PATTERNS = [
   {
     name: 'base64_data',
     description: 'Base64编码数据 (可能包含敏感信息)',
-    regex: /\b[A-Za-z0-9+/]{20,}={0,2}\b/g,
+    // 修正：原 [A-Za-z0-9+/]{20,} 会吞掉 git SHA(纯 hex)、长单词等。
+    // 真 base64(随机二进制编码)几乎必然同时含大写、小写、数字；用有界前瞻要求三者
+    // 都出现，从而排除纯 hex(SHA，无大写)与纯字母单词(无数字)。已知取舍：全小写+数字的
+    // base64 会漏(罕见)。
+    regex: /\b(?=[A-Za-z0-9+/]*[a-z])(?=[A-Za-z0-9+/]*[A-Z])(?=[A-Za-z0-9+/]*[0-9])[A-Za-z0-9+/]{20,}={0,2}/g,
     replacement: 'base64EncodedData***',
     enabled: true, // 启用以脱敏SQL参数中的Base64数据
     category: 'encoded'
