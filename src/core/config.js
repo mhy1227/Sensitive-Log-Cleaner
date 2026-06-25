@@ -4,12 +4,13 @@
 
 // Sensitive key patterns (case-insensitive)
 const SENSITIVE_KEYS = [
-  // 密码相关
-  'password', 'passwd', 'pwd', 'pass', 'passphrase',
+  // 密码相关（移除裸 'pass'：与 "test pass"/"pass: ok" 冲突；password/passwd/pwd 覆盖）
+  'password', 'passwd', 'pwd', 'passphrase',
 
-  // 令牌相关
+  // 令牌相关（移除裸 'auth'：与 "auth: success/failed" 冲突；authorization/auth_token/
+  // authtoken/oauth 覆盖。Authorization 头另由 maskAuthHeaders 专门处理）
   'token', 'access_token', 'refresh_token', 'auth_token', 'api_token', 'bearer_token',
-  'authorization', 'auth', 'bearer', 'oauth', 'jwt',
+  'authorization', 'bearer', 'oauth', 'jwt',
 
   // 会话相关
   'cookie', 'session', 'sessionid', 'jsessionid', 'csrf_token', 'xsrf_token',
@@ -24,10 +25,11 @@ const SENSITIVE_KEYS = [
   'appkey', 'appsecret', 'clientsecret', 'accountkey',
 
   // 凭据相关
-  // 注意：移除了 'sign'/'hash'（与日志常见词 "sign in"/"file hash" 冲突，大面积误掩；
-  // 敏感场景由 'signature' 与 hex_key/base64 规则覆盖）。
-  'credential', 'credentials', 'cred', 'cert', 'certificate',
-  'signature', 'salt',
+  // 注意：移除了 'sign'/'hash'/'cert'/'salt'（与 "sign in"/"file hash"/"cert: valid"/
+  // "salt: ..." 等常见日志词冲突，大面积误掩；敏感场景由 'signature'/'certificate' 与
+  // hex_key/base64 规则覆盖）。
+  'credential', 'credentials', 'cred', 'certificate',
+  'signature',
 
   // 验证相关
   // 注意：移除了 'code'（与 "status code"/"error code"/"exit code" 冲突，几乎每条日志都误掩；
