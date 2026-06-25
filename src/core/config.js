@@ -53,8 +53,10 @@ const PATTERNS = [
   {
     name: 'chinese_phone',
     description: 'Chinese mobile phone numbers',
-    regex: /\b(1[3-9]\d)(\d{4})(\d{4})\b/g,
-    replacement: '$1****$3',
+    // 用数字环视做边界（而非 \b）：兼容可选 +86/86 国家码前缀，否则 +8613800138000 因
+    // 手机号前紧跟 "86" 不存在词边界而漏脱；环视 (?![0-9]) 同时避免吃进更长数字串。
+    regex: /(?<![0-9])(\+?86[-\s]?)?(1[3-9]\d)(\d{4})(\d{4})(?![0-9])/g,
+    replacement: '$1$2****$4',
     enabled: true, // 默认启用
     category: 'personal' // 个人信息
   },

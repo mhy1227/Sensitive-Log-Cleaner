@@ -17,7 +17,12 @@ const scrubWith = (enabledNames, s) =>
 
 describe("结构化 PII（应脱敏）", () => {
   it("邮箱", () => expect(scrub("联系 alice@example.com").hasChanges).toBe(true));
-  it("中国手机号", () => expect(scrub("电话 13800138000").hasChanges).toBe(true));
+  it("中国手机号", () => expect(scrub("电话 13800138000").masked).toBe("电话 138****8000"));
+  it("带 +86 前缀的手机号（回归：曾因 \\b 漏脱）", () =>
+    expect(scrub("tel +8613800138000 end").masked).toBe("tel +86138****8000 end"));
+  it("带 86- 前缀", () => expect(scrub("86-13800138000").hasChanges).toBe(true));
+  it("更长数字串不误吃手机号片段", () =>
+    expect(scrub("id 1380013800099 done").hasChanges).toBe(false));
   it("18 位身份证（回归：曾因正则要求 21 位而永远漏脱）", () =>
     expect(scrub("身份证 11010519491231002X").hasChanges).toBe(true));
   it("身份证带 x 校验位", () =>
