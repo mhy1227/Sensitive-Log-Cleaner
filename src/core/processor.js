@@ -375,8 +375,9 @@ class FileProcessor {
 
       for (const stream of streams) {
         const handler = (err) => {
-          // 静默处理 abort 错误，其他错误正常抛出
-          if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
+          // 静默处理 abort / 流已销毁错误：取消时销毁流后，循环可能再写一次，
+          // 触发 ERR_STREAM_DESTROYED——若此时无监听器，Node 会因未处理 'error' 崩溃。
+          if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.code === 'ERR_STREAM_DESTROYED')) {
             console.log('[abort] Stream error suppressed:', err.message);
           } else if (err) {
             console.warn('[stream error]', err.message);
@@ -393,15 +394,9 @@ class FileProcessor {
 
       // 设置中止处理器 - 静默终止，不抛 error
       abortHandler = () => {
-        // 移除 error 监听器，避免重复触发
-        for (const [stream, handler] of streamErrorHandlers) {
-          try {
-            stream.removeListener('error', handler);
-          } catch (_) {}
-        }
-        streamErrorHandlers.clear();
-
-        // 静默关闭/销毁流（不传入 error，避免触发 unhandled error）
+        // 注意：销毁流后循环可能再写一次而触发 'error'，因此这里【保留】error 监听器
+        // （它们会吞掉 ERR_STREAM_DESTROYED），统一在 finally 中移除；否则取消大文件时
+        // 销毁后的滞后写入会产生未处理 'error' 事件直接崩进程。
         try { rl.close(); } catch (_) {}
         try { fileReadStream.destroy(); } catch (_) {}
         if (inputStream !== fileReadStream) {
