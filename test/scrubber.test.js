@@ -90,6 +90,28 @@ describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）"
     expect(scrub("monkey: banana").hasChanges).toBe(false));
 });
 
+describe("带前缀/引号的结构化日志（回归：极常见的整条漏脱）", () => {
+  it("时间前缀 JSON：2026-06-25 INFO {\"password\":\"x\"}", () => {
+    const r = scrub('2026-06-25 INFO {"password":"secret123"}');
+    expect(r.hasChanges).toBe(true);
+    expect(r.masked).toBe('2026-06-25 INFO {"password":"***"}');
+  });
+  it("级别前缀 JSON：[ERROR] {\"token\":\"x\"}", () =>
+    expect(scrub('[ERROR] {"token":"abc123def"}').hasChanges).toBe(true));
+  it("文本中的引号 KV：\"password\":\"x\"", () => {
+    const r = scrub('msg "password":"secret123" end');
+    expect(r.masked).toBe('msg "password":"***" end');
+  });
+  it("纯 JSON 仍正常（不回归）", () =>
+    expect(scrub('{"password":"secret123"}').masked).toBe('{"password":"***"}'));
+
+  // 误报守卫仍生效
+  it("monkey: banana 仍不误脱", () =>
+    expect(scrub("monkey: banana").hasChanges).toBe(false));
+  it("密码是什么 仍不误脱", () =>
+    expect(scrub("用户问 密码是什么 呢").hasChanges).toBe(false));
+});
+
 describe("默认禁用规则的正则正确性（防 license_plate 式静默漏报）", () => {
   it("license_plate 启用后应匹配 京A12345（回归：原 \\b 导致永不匹配）", () =>
     expect(scrubWith(["license_plate"], "车牌 京A12345 已登记").hasChanges).toBe(true));

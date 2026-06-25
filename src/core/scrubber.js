@@ -247,9 +247,12 @@ class LogScrubber {
       if (cjkKeys.length) alts.push(`(?:${cjkKeys.join("|")})`);
       if (alts.length === 0) return { masked, hasChanges };
 
-      // group1 = 关键词+分隔符（保留），group2 = 值（替换为掩码）
+      // group1 = 关键词+(可选引号)+分隔符+(可选引号)（保留），group2 = 值（替换为掩码）。
+      // 容忍 key/value 两侧引号，覆盖带前缀的 JSON 日志（2026 INFO {"password":"x"}）
+      // 与引号 KV（"token":"x"）——否则这类极常见的结构化日志会整条漏脱。
+      // value 同时排除引号，避免把闭合引号吃进掩码。
       const keywordRegex = new RegExp(
-        `((?:${alts.join("|")})\\s*[:=：]\\s*)([^\\s\\n\\r,;&，。；]+)`,
+        `((?:${alts.join("|")})["']?\\s*[:=：]\\s*["']?)([^\\s\\n\\r,;&，。；"']+)`,
         "gi"
       );
 
