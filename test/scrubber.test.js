@@ -90,6 +90,20 @@ describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）"
     expect(scrub("monkey: banana").hasChanges).toBe(false));
 });
 
+describe("Authorization 头（回归：只掩 scheme、token 泄露）", () => {
+  it("Bearer token 整体掩码", () =>
+    expect(scrub("Authorization: Bearer abc123XYZsecrettoken456").masked).toBe(
+      "Authorization: ***",
+    ));
+  it("Basic 凭据（无数字 base64）不再泄露", () => {
+    const out = scrub("authorization=Basic dXNlcjpwYXNz").masked;
+    expect(out).toBe("authorization=***");
+    expect(out).not.toContain("dXNlcjpwYXNz");
+  });
+  it("无 scheme 的 authorization 值也掩码", () =>
+    expect(scrub("Authorization: rawtoken123").masked).toBe("Authorization: ***"));
+});
+
 describe("带前缀/引号的结构化日志（回归：极常见的整条漏脱）", () => {
   it("时间前缀 JSON：2026-06-25 INFO {\"password\":\"x\"}", () => {
     const r = scrub('2026-06-25 INFO {"password":"secret123"}');

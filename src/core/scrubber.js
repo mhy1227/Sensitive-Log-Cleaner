@@ -168,6 +168,23 @@ class LogScrubber {
   }
 
   /**
+   * Mask the token in an Authorization header: Authorization: <scheme> <token>.
+   * 把 scheme+token 整体掩码。必须在 maskKeyValuePairs 之前调用——否则 KV 会先把 value
+   * 取到第一个空格、只掩掉 scheme(Bearer/Basic)，真正的 token 漏脱（尤其无数字的 Basic
+   * base64 不会被 base64 规则兜住，直接泄露）。
+   */
+  maskAuthHeaders(line) {
+    let masked = line;
+    let hasChanges = false;
+    const authRegex = /(\b(?:proxy-)?authorization\b["']?\s*[:=]\s*["']?)((?:bearer|basic|digest|token|ntlm|hmac)\s+[^\s;,&"']+|[^\s;,&"']+)/gi;
+    masked = masked.replace(authRegex, (m, prefix) => {
+      hasChanges = true;
+      return prefix + this.defaultMask;
+    });
+    return { masked, hasChanges };
+  }
+
+  /**
    * Mask key-value pairs where the key is sensitive
    * Supports formats: key=value, key: value, key => value, key -> value
    */
@@ -353,7 +370,12 @@ class LogScrubber {
         result = jsonResult.masked;
         lineHasChanges = jsonResult.hasChanges;
       } else {
-        // Step 1: Mask key-value pairs (text mode)
+        // Step 1a: Authorization 头特例（必须在 KV 之前，否则 KV 只掩 scheme、token 漏脱）
+        const authResult = this.maskAuthHeaders(result);
+        result = authResult.masked;
+        lineHasChanges = lineHasChanges || authResult.hasChanges;
+
+        // Step 1b: Mask key-value pairs (text mode)
         const kvResult = this.maskKeyValuePairs(result);
         result = kvResult.masked;
         lineHasChanges = lineHasChanges || kvResult.hasChanges;
