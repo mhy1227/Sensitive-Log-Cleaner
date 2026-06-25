@@ -1,11 +1,19 @@
 import { describe, it, expect } from "vitest";
 import Mod from "../src/core/scrubber.js";
+import CfgMod from "../src/core/config.js";
 
-// CJS 模块经 vitest 互操作：default 即类本身
+// CJS 模块经 vitest 互操作：default 即模块导出
 const LogScrubber = Mod.default ?? Mod;
+const { PATTERNS } = CfgMod.default ?? CfgMod;
 
 // 每次用全新实例（processLine 只对 stats 有状态）
 const scrub = (s) => new LogScrubber().processLine(s);
+
+// 按名字启用指定规则后处理（用于测默认禁用的规则）
+const scrubWith = (enabledNames, s) =>
+  new LogScrubber({
+    patterns: PATTERNS.map((p) => ({ ...p, enabled: enabledNames.includes(p.name) })),
+  }).processLine(s);
 
 describe("结构化 PII（应脱敏）", () => {
   it("邮箱", () => expect(scrub("联系 alice@example.com").hasChanges).toBe(true));
@@ -46,4 +54,11 @@ describe("敏感键名（应脱敏）", () => {
 describe("不应误脱（既有正确行为，防回归）", () => {
   it("UUID 不脱", () =>
     expect(scrub("trace 550e8400-e29b-41d4-a716-446655440000").hasChanges).toBe(false));
+});
+
+describe("默认禁用规则的正则正确性（防 license_plate 式静默漏报）", () => {
+  it("license_plate 启用后应匹配 京A12345（回归：原 \\b 导致永不匹配）", () =>
+    expect(scrubWith(["license_plate"], "车牌 京A12345 已登记").hasChanges).toBe(true));
+  it("license_plate 兼容中文后缀（京A1234学）", () =>
+    expect(scrubWith(["license_plate"], "教练车 京A1234学 年检").hasChanges).toBe(true));
 });
