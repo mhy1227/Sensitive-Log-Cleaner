@@ -190,8 +190,10 @@ class LogScrubber {
       .map((sep) => String(sep).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
       .join("|");
 
+    // value 排除 , ; & —— 否则 token=abc&other=keep 会把 &other=keep 一起吞掉打码
+    // （静默删数据，比漏报更糟）。与 maskSensitiveKeywords 的 value 取值口径保持一致。
     const kvRegex = new RegExp(
-      `(\\b[\\w.-]+)(\\s*(?:${separatorPattern})\\s*)([^\\s\\n\\r]+)`,
+      `(\\b[\\w.-]+)(\\s*(?:${separatorPattern})\\s*)([^\\s\\n\\r,;&]+)`,
       "gi"
     );
 
