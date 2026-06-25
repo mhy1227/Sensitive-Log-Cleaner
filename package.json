@@ -1,6 +1,6 @@
 {
   "name": "log-scrubber-gui",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "GUI version of Log Scrubber - Enterprise-grade tool to mask sensitive data in log files",
   "main": "main.js",
   "scripts": {
