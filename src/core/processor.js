@@ -446,8 +446,10 @@ class FileProcessor {
         const chunk = processResult.masked + lineEnding;
 
         // Handle backpressure with abort support
+        // 必须传 signal：否则 abort 时流被销毁只发 'close' 不发 'drain'，
+        // waitForDrain 会永久挂起（大文件背压期间取消即卡死）。
         if (!writer.write(chunk)) {
-          await waitForDrain(writer, null);
+          await waitForDrain(writer, signal);
         }
       }
 
@@ -461,9 +463,9 @@ class FileProcessor {
         fileWriteStream.end();
       }
 
-      // 等待完成或错误 - 跟踪所有相关流
+      // 等待完成或错误 - 跟踪所有相关流（传 signal，使收尾阶段也响应中止）
       const errorStreams = [fileReadStream, inputStream, encoder].filter(Boolean);
-      await waitForFinishOrError(fileWriteStream, { signal: null, errorStreams });
+      await waitForFinishOrError(fileWriteStream, { signal, errorStreams });
 
       // 成功：将临时文件重命名为最终输出文件
       if (tempFileCreated) {
