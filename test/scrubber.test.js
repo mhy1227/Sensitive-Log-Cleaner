@@ -51,6 +51,24 @@ describe("敏感键名（应脱敏）", () => {
   it("token: 值", () => expect(scrub("token: aB3xK9pLmN2qR7sT").hasChanges).toBe(true));
 });
 
+describe("KV 吞参（回归：只脱敏感值，不得吞掉相邻参数/日志）", () => {
+  it("多参不吞：token=x&other=keep&id=42", () => {
+    const out = scrub("token=abc123&other=keepme&id=42").masked;
+    expect(out).toBe("token=***&other=keepme&id=42");
+  });
+  it("URL query 不吞：?token=x&page=2", () => {
+    const out = scrub("GET /cb?token=abc123&page=2 HTTP/1.1").masked;
+    expect(out).toBe("GET /cb?token=***&page=2 HTTP/1.1");
+  });
+  it("逗号分隔不吞：token=x,foo=bar", () => {
+    const out = scrub("token=abc123,foo=bar").masked;
+    expect(out).toBe("token=***,foo=bar");
+  });
+  it("非敏感 KV 原样", () => {
+    expect(scrub("status=200 method=GET").hasChanges).toBe(false);
+  });
+});
+
 describe("不应误脱（既有正确行为，防回归）", () => {
   it("UUID 不脱", () =>
     expect(scrub("trace 550e8400-e29b-41d4-a716-446655440000").hasChanges).toBe(false));
