@@ -234,18 +234,28 @@ class LogScrubber {
       return { masked, hasChanges };
     }
 
-    // Look for sensitive keywords followed by separators and values
+    // Look for sensitive keywords followed by separators and values.
+    // ASCII 关键词用 \b 词边界（避免 monkey 命中 key）；CJK 关键词（密码/密钥…）无 ASCII
+    // 词边界，单独成支不带 \b。分隔符含半角 : = 与全角 ：；value 同时排除全角标点。
     try {
-      const keywordPattern = keys.join("|");
-      // Note: added & to handle URL query parameters like token=abc&password=secret
+      const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const asciiKeys = keys.filter((k) => /^[\x00-\x7F]+$/.test(k)).map(esc);
+      const cjkKeys = keys.filter((k) => !/^[\x00-\x7F]+$/.test(k)).map(esc);
+
+      const alts = [];
+      if (asciiKeys.length) alts.push(`\\b(?:${asciiKeys.join("|")})\\b`);
+      if (cjkKeys.length) alts.push(`(?:${cjkKeys.join("|")})`);
+      if (alts.length === 0) return { masked, hasChanges };
+
+      // group1 = 关键词+分隔符（保留），group2 = 值（替换为掩码）
       const keywordRegex = new RegExp(
-        `\\b(?:${keywordPattern})\\b\\s*[:=]\\s*([^\\s\\n\\r,;&]+)`,
+        `((?:${alts.join("|")})\\s*[:=：]\\s*)([^\\s\\n\\r,;&，。；]+)`,
         "gi"
       );
 
-      masked = masked.replace(keywordRegex, (match, value) => {
+      masked = masked.replace(keywordRegex, (match, prefix) => {
         hasChanges = true;
-        return match.replace(value, this.defaultMask);
+        return prefix + this.defaultMask;
       });
     } catch (regexError) {
       console.warn('Error in keyword regex:', regexError.message);

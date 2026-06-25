@@ -74,6 +74,22 @@ describe("不应误脱（既有正确行为，防回归）", () => {
     expect(scrub("trace 550e8400-e29b-41d4-a716-446655440000").hasChanges).toBe(false));
 });
 
+describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）", () => {
+  it("中文键名 + 全角冒号：密码：secret123", () =>
+    expect(scrub("密码：secret123").masked).toBe("密码：***"));
+  it("中文键名 + 半角等号：密钥=abcdef123456", () =>
+    expect(scrub("密钥=abcdef123456").masked).toBe("密钥=***"));
+  it("英文键 + 全角冒号：password：secret", () =>
+    expect(scrub("password：secret").hasChanges).toBe(true));
+  it("令牌：xxx", () => expect(scrub("令牌：tk_abc123def").hasChanges).toBe(true));
+
+  // 误报守卫
+  it("自然语言不误脱：密码是什么（无赋值分隔符）", () =>
+    expect(scrub("用户问 密码是什么 呢").hasChanges).toBe(false));
+  it("ASCII 子串守卫：monkey: banana（key 在 monkey 内不应命中）", () =>
+    expect(scrub("monkey: banana").hasChanges).toBe(false));
+});
+
 describe("默认禁用规则的正则正确性（防 license_plate 式静默漏报）", () => {
   it("license_plate 启用后应匹配 京A12345（回归：原 \\b 导致永不匹配）", () =>
     expect(scrubWith(["license_plate"], "车牌 京A12345 已登记").hasChanges).toBe(true));

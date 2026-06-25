@@ -31,7 +31,10 @@ const SENSITIVE_KEYS = [
 
   // 支付相关
   'cvv', 'cvc', 'security_code', 'card_number', 'account_number',
-  'bank_account', 'payment_method'
+  'bank_account', 'payment_method',
+
+  // 中文键名（针对中文日志；仅在带 : ： = 赋值分隔符时生效，避免误伤自然语言）
+  '密码', '口令', '密钥', '密匙', '秘钥', '令牌', '凭证', '凭据', '访问令牌', '刷新令牌'
 ];
 
 // Regex patterns for different types of sensitive data
@@ -475,8 +478,8 @@ const PATTERNS = [
   }
 ];
 
-// Key-value separators
-const KV_SEPARATORS = ['=', ':', '=>', '->'];
+// Key-value separators（含中文全角冒号 ：）
+const KV_SEPARATORS = ['=', ':', '：', '=>', '->'];
 
 // Default replacement text
 const DEFAULT_MASK = '***';
