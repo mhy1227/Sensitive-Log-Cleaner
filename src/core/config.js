@@ -18,6 +18,11 @@ const SENSITIVE_KEYS = [
   'secret', 'key', 'private_key', 'public_key', 'api_key', 'app_key', 'app_secret',
   'client_secret', 'consumer_secret', 'encryption_key', 'decrypt_key',
 
+  // 无分隔符变体（apikey/accesstoken 等极常见拼法，原列表只有下划线版会漏）
+  'apikey', 'apitoken', 'apisecret', 'accesstoken', 'refreshtoken', 'authtoken',
+  'bearertoken', 'accesskey', 'secretkey', 'privatekey', 'publickey',
+  'appkey', 'appsecret', 'clientsecret', 'accountkey',
+
   // 凭据相关
   // 注意：移除了 'sign'/'hash'（与日志常见词 "sign in"/"file hash" 冲突，大面积误掩；
   // 敏感场景由 'signature' 与 hex_key/base64 规则覆盖）。

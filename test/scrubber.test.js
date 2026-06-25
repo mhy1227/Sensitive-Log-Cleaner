@@ -90,6 +90,16 @@ describe("中文键名 / 全角冒号（回归：中文日志场景的漏报）"
     expect(scrub("monkey: banana").hasChanges).toBe(false));
 });
 
+describe("无分隔符键名变体（回归：apikey 等漏脱）", () => {
+  it("apikey 多参不漏", () => {
+    const out = scrub("/cb?token=SECRETtk&apikey=SECRETak&password=SECRETpw&page=2").masked;
+    expect(out).not.toContain("SECRETak");
+    expect(out).toContain("page=2");
+  });
+  it("accesstoken=", () => expect(scrub("accesstoken=SECRETat").hasChanges).toBe(true));
+  it("secretkey=", () => expect(scrub("secretkey=SECRETsk").hasChanges).toBe(true));
+});
+
 describe("过宽关键词误报（回归：code/hash/sign 误掩常见日志词）", () => {
   it("HTTP 状态码不掩", () => expect(scrub("HTTP status code: 200").hasChanges).toBe(false));
   it("错误码不掩", () => expect(scrub("error code: 500 timeout").hasChanges).toBe(false));
