@@ -320,12 +320,10 @@ class LogScrubber {
         const matchCount = (masked.match(regex) || []).length;
 
         if (matchCount > 0) {
-          hasChanges = true;
-          matches[pattern.name] = matchCount;
-
           // 防御性检查：确保 replacement 是有效类型
           const replacement = pattern.replacement;
 
+          const before = masked;
           if (typeof replacement === 'function') {
             masked = masked.replace(regex, replacement);
           } else if (typeof replacement === 'string' || typeof replacement === 'undefined') {
@@ -333,6 +331,13 @@ class LogScrubber {
           } else {
             console.warn('Invalid replacement type for pattern:', pattern.name, typeof replacement);
             masked = masked.replace(regex, this.defaultMask);
+          }
+
+          // 仅在文本确实改变时才计 hasChanges/matches —— 否则像 sql_parameter_masking
+          // 这种“函数返回原值”的规则会虚报脱敏（统计不准）。
+          if (masked !== before) {
+            hasChanges = true;
+            matches[pattern.name] = matchCount;
           }
         }
       } catch (regexError) {
